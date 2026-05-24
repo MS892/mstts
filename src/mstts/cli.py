@@ -23,11 +23,11 @@ from mstts.engine import EdgeTTSEngine
 
 app = typer.Typer(
     name="mstts",
-    help="🎙️ Minimal Speech TTS — Text-to-Speech für die Kommandozeile",
+    help="[mstts] Minimal Speech TTS — Text-to-Speech fuer die Kommandozeile",
     add_completion=False,
 )
 
-console = Console()
+console = Console(force_terminal=True)
 engine = EdgeTTSEngine()
 ctx = CLIContext(engine=engine)
 
@@ -86,22 +86,23 @@ def speak(
         pitch=pitch,
     )
 
-    console.print(f"🎙️ [bold]Spreche[/] ({len(text)} Zeichen, Stimme: {voice})")
+    console.print(f"[*] [bold]Spreche[/] ({len(text)} Zeichen, Stimme: {voice})")
 
     response = _run_async(engine.synthesize(request))
 
     if response.success:
+        engine_tag = f"\\[{response.engine_used}]"
         if response.output_file:
             console.print(
-                f"[green]✅ Audio gespeichert: {response.output_file}[/] "
+                f"[green][OK] {engine_tag} Audio gespeichert: {response.output_file}[/] "
                 f"({response.duration_ms}ms)"
             )
         else:
             console.print(
-                f"[green]✅ Vorgelesen[/] ({response.duration_ms}ms)"
+                f"[green][OK] {engine_tag} Vorgelesen[/] ({response.duration_ms}ms)"
             )
     else:
-        console.print(f"[red]❌ Fehler: {response.error_message}[/]")
+        console.print(f"[red][!!] Fehler: {response.error_message}[/]")
         raise typer.Exit(1)
 
 
@@ -120,11 +121,11 @@ def speak_file(
 ) -> None:
     """Lies eine Textdatei vor."""
     if not file.exists():
-        console.print(f"[red]❌ Datei nicht gefunden: {file}[/]")
+        console.print(f"[red][!!] Datei nicht gefunden: {file}[/]")
         raise typer.Exit(1)
 
     text = file.read_text(encoding="utf-8")
-    console.print(f"📄 [bold]{file.name}[/] ({len(text)} Zeichen)")
+    console.print(f"[>] [bold]{file.name}[/] ({len(text)} Zeichen)")
 
     request = TTSRequest(
         text=text,
@@ -136,17 +137,18 @@ def speak_file(
     response = _run_async(engine.synthesize(request))
 
     if response.success:
+        engine_tag = f"\\[{response.engine_used}]"
         if response.output_file:
             console.print(
-                f"[green]✅ Audio gespeichert: {response.output_file}[/] "
+                f"[green][OK] {engine_tag} Audio gespeichert: {response.output_file}[/] "
                 f"({response.duration_ms}ms)"
             )
         else:
             console.print(
-                f"[green]✅ Vorgelesen[/] ({response.duration_ms}ms)"
+                f"[green][OK] {engine_tag} Vorgelesen[/] ({response.duration_ms}ms)"
             )
     else:
-        console.print(f"[red]❌ Fehler: {response.error_message}[/]")
+        console.print(f"[red][!!] Fehler: {response.error_message}[/]")
         raise typer.Exit(1)
 
 
@@ -163,7 +165,7 @@ def list_voices(
     if language:
         voices = [v for v in voices if v.language == language]
 
-    table = Table(title=f"🎙️ Verfügbare Stimmen ({len(voices)})")
+    table = Table(title=f"[*] Verfügbare Stimmen ({len(voices)})")
     table.add_column("ID", style="cyan")
     table.add_column("Name", style="bold")
     table.add_column("Sprache")
@@ -179,9 +181,34 @@ def list_voices(
 def version() -> None:
     """Zeige Programmversion."""
     from mstts import __version__
-    console.print(f"🎙️ [bold]mstts[/] v{__version__}")
+    console.print(f"[*] [bold]mstts[/] v{__version__}")
     console.print("Engine: Microsoft Edge TTS (edge-tts)")
     console.print("Fallback: System-TTS (SAPI/say/espeak)")
+
+
+@app.command("text2tts")
+def text2tts_cmd(
+    file: Path = typer.Argument(..., help="Pfad zur Textdatei"),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o",
+        help="Ausgabedatei (.tts.txt), sonst automatisch",
+    ),
+    play: bool = typer.Option(
+        False, "--play", "-p",
+        help="Nach Konvertierung direkt vorlesen",
+    ),
+) -> None:
+    """Konvertiert Text in TTS-freundliche Version und spielt optional ab."""
+    from mstts.text2tts import convert_file
+    out = convert_file(file, output)
+    console.print(f"[green][OK] {out}[/]")
+    if play:
+        console.print("[*] Starte Sprachausgabe...")
+        text = out.read_text(encoding="utf-8")
+        request = TTSRequest(text=text, voice="de-DE-ConradNeural")
+        response = _run_async(engine.synthesize(request))
+        if not response.success:
+            console.print(f"[red][!!] {response.error_message}[/]")
 
 
 def main() -> None:
