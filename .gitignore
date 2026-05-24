@@ -1,28 +1,14 @@
-# Bytecode
+# Build artifacts
+onecore-tts/OneCoreTTS/bin/
+onecore-tts/OneCoreTTS/obj/
+
+# Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.egg-info/
 dist/
 build/
 
-# Virtual Environment
-venv/
-.venv/
-
-# IDE
-.vscode/
-.idea/
-
-# Testing
-.pytest_cache/
-htmlcov/
-.coverage
-
-# Audio output
-*.mp3
-*.wav
-*.pcm
-
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
